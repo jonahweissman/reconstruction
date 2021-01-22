@@ -3,24 +3,19 @@
 from __future__ import print_function, division, absolute_import
 
 import os
+import glob
 import json
 import numpy as np
 import argparse
 import itertools
-import nbank
 import ewave
 import gammatone.gtgram as gg
-import libtfr
 import pandas as pd
-import toelis as tl
 from joblib import dump, load
-from scipy.ndimage.filters import gaussian_filter1d
 from sklearn.linear_model import RidgeCV
-from scipy.linalg import toeplitz
-import matplotlib.pyplot as plt
 
 
-def load_pprox(cell, window, step, stimuli=None, alt_base=None, **specargs):
+def load_pprox(cell, stimuli):
     """ Load stimulus file and response data from local sources """
     unit = os.path.splitext(os.path.basename(cell))[0]
     print(" - responses loaded from:", unit)
@@ -28,26 +23,27 @@ def load_pprox(cell, window, step, stimuli=None, alt_base=None, **specargs):
     out = []
     with open(cell, 'r') as fp:
         data = json.load(fp)
-        trials = sorted(data['pprox'], key=lambda x: (x['stimulus'], x['condition'], x['stim_uuid'], x['trial']))
-        for (stimulus, condition, stimname), trial in itertools.groupby(trials, lambda x: (
-        x['stimulus'], x['condition'], x['stim_uuid'])):
-            if stimuli is not None and stimname not in stimuli:
+        sorter = lambda x: (x['stimulus'], x['condition'], x['trial'])
+        grouper = lambda x: (x['stimulus'], x['condition'])
+        trials = sorted(data['pprox'], key=sorter)
+        for (stimulus, condition), trial in itertools.groupby(trials, grouper):
+            stim_name = '_'.join((stimulus,condition))
+            try:
+                stim_dur = stimuli[stim_name][1]
+            except KeyError:
                 continue
-            stimfile = 'stims/' + '_'.join((stimulus,condition)) + '.wav'
-            spec, dur = load_stimulus(stimfile, window, step, **specargs)
             out.append({"cell_name": unit,
                         "stimulus": stimulus,
                         "condition": condition,
-                        "stim_uuid": stimname,
-                        "duration": dur,
-                        "stim": spec,
-                        "stim_dt": step,
+                        "stim_name": stim_name,
+                        "duration": stim_dur,
+                        "stim_dt": stimuli[stim_name][2],
                         "spikes": [np.asarray(p["event"]) for p in trial]})
     return out
 
 
 def load_stimulus(path, window, step, f_min=0.5, f_max=8.0, f_count=30,
-                  compress=1, gammatone=False, **kwargs):
+                  compress=1, **kwargs):
     """Load sound stimulus and calculate spectrotemporal representation.
 
     Parameters:
@@ -65,66 +61,9 @@ def load_stimulus(path, window, step, f_min=0.5, f_max=8.0, f_count=30,
     fp = ewave.open(path, "r")
     Fs = fp.sampling_rate / 1000.
     osc = ewave.rescale(fp.read(), 'h')
-    if gammatone:
-        Pxx = gg.gtgram(osc, Fs * 1000, window / 1000, step / 1000, f_count, f_min * 1000)
-    else:
-        # nfft based on desired number of channels btw f_min and f_max
-        nfft = int(f_count / (f_max - f_min) * Fs)
-        npoints = int(Fs * window)
-        if nfft < npoints:
-            raise ValueError("window size {} ({} points) too large for desired freq resolution {}. "
-                             "Decrease to {} ms or increase f_count.".format(window, f_count,
-                                                                             npoints, nfft / Fs))
-
-        nstep = int(Fs * step)
-        taper = np.hanning(npoints)
-        mfft = libtfr.mfft_precalc(nfft, taper)
-        Pxx = mfft.mtspec(osc, nstep)
-        freqs, ind = libtfr.fgrid(Fs, nfft, [f_min, f_max])
-        Pxx = Pxx[ind, :]
-    if compress is not None:
-        Pxx = np.log10(Pxx + compress) - np.log10(compress)
-    return Pxx, Pxx.shape[1] * step
-
-
-def pad_stimuli(data, before, after, fill_value=None):
-    """Pad stimuli and adjust spike times in data
-
-    Stimuli are usually preceded and followed by silent periods. This function
-    pads the spectrograms with either by the specified fill_value, or by the
-    average value in the first and last frame (if fill_value is None)
-
-    Spike times are adjusted so that they are reference to the start of the
-    padded stimulus, and all spike times outside the padded interval are
-    dropped.
-
-    - data: a sequence of dictionaries, which must contain 'spikes', 'stim' and
-      'stim_dt' fields. This is modified in place
-    - before: interval to pad before stimulus begins (in units of stim_dt)
-    - after: interval to pad after stimulus ends
-
-    NB: this needs to be run BEFORE preprocess_spikes as it will not touch
-    spike_v or spike_h.
-
-    """
-    for d in data:
-        dt = d["stim_dt"]
-        n_before = int(before / dt)
-        n_after = int(after / dt)
-
-        s = d["stim"]
-        nf, nt = s.shape
-        fv_before = s[:, 0].mean() if fill_value is None else fill_value
-        p_before = fv_before * np.ones((nf, n_before), dtype=s.dtype)
-        fv_after = s[:, -1].mean() if fill_value is None else fill_value
-        p_after = fv_after * np.ones((nf, n_after), dtype=s.dtype)
-
-        d["stim"] = np.c_[p_before, s, p_after]
-
-        newtl = tl.offset(tl.subrange(d["spikes"], -before, d["duration"] + after), -before)
-        d["spikes"] = list(newtl)
-        d["duration"] += before + after
-    return data
+    Pxx = gg.gtgram(osc, Fs * 1000, window / 1000, step / 1000, f_count, f_min * 1000)
+    Pxx = np.log10(Pxx + compress) - np.log10(compress)
+    return Pxx, Pxx.shape[1] * step, step
 
 
 def merge_data(seq):
@@ -156,7 +95,7 @@ def merge_data(seq):
         "stim_dt": stim_dt,
         "spike_dt": spike_dt,
         "ntrials": ntrials,
-        "stim": np.concatenate([d["stim"] for d in seq], axis=1),
+        "stim_names": [d["stim_name"] for d in seq],
         "psth": np.concatenate([d['psth'] for d in seq]),
         "R": np.concatenate([d["R"] for d in seq], axis=0),
         "spike_v": spike_v,
@@ -165,16 +104,11 @@ def merge_data(seq):
     return data
 
 
-def merge_cells(seq):
+def merge_cells(seq,stimuli):
     stim_dts = [d["stim_dt"] for d in seq]
     stim_dt = stim_dts[0]
     if not np.all(np.equal(stim_dts, stim_dt)):
         raise ValueError("not all stimuli have the same sampling rate")
-
-    stims = [d["stim"] for d in seq]
-    stim = stims[0]
-    if not np.all(np.equal(stims, stim)):
-        raise ValueError("not all stims are the same")
 
     spike_dts = [d["spike_dt"] for d in seq]
     spike_dt = spike_dts[0]
@@ -185,6 +119,11 @@ def merge_cells(seq):
     ntrials = ntrialss[0]
     if not np.all(np.equal(ntrialss, ntrials)):
         raise ValueError("not all cells have the same length")
+
+    stimlist = seq[0]["stim_names"]
+    if not all(d["stim_names"] == stimlist for d in seq):
+        raise ValueError("not all stims are the same")
+    stim = np.concatenate([stimuli[name][0] for name in stimlist], axis=1)
 
     spike_v = np.concatenate([d["spike_v"] for d in seq], axis=1)
     data = {
@@ -199,7 +138,7 @@ def merge_cells(seq):
     return data
 
 
-def preprocess_spikes(data, dt):
+def preprocess_spikes(data, dt, nlag=0):
     """Preprocess spike times in data
 
     Spike times are binned into intervals of duration dt.
@@ -217,8 +156,8 @@ def preprocess_spikes(data, dt):
     """
     for d in data:
         ntrials = len(d["spikes"])
-        nchan, nframes = d["stim"].shape
-        nbins = nframes * int(d["stim_dt"] / dt)
+        nframes = d["duration"]
+        nbins = nframes * int(d["stim_dt"] / dt) + nlag
         spike_v = np.zeros((nbins, ntrials), dtype='i')
         for i, trial in enumerate(d["spikes"]):
             idx = (trial / dt).astype('i')
@@ -227,26 +166,8 @@ def preprocess_spikes(data, dt):
             spike_v[idx, i] = 1
         d["spike_v"] = spike_v
         d["spike_dt"] = dt
+        d["psth"] = np.sum(spike_v, axis=1)
     return data
-
-
-def make_psth(spike_v, downsample=None, smooth=None):
-    """Compute psth from multi-trial spike vector (dimension nbins x ntrials)
-
-    downsample: if not None, factor by which to downsample the PSTH
-    smooth:     if not None, smooth the downsampled PSTH
-    """
-
-    nbins, ntrials = spike_v.shape
-    if downsample is not None:
-        new_bins = nbins // downsample
-        psth = np.sum(spike_v[:(new_bins * downsample), :].reshape(new_bins, ntrials, -1), axis=(1, 2))
-    else:
-        psth = np.sum(spike_v, axis=1)
-    if smooth is not None:
-        return gaussian_filter1d(psth.astype('d'), smooth, mode="constant", cval=0.0)
-    else:
-        return psth
 
 
 def split_data(data, fit_group=None, test_group=None):
@@ -279,7 +200,8 @@ def lagged_matrix(spec, basis):
     an integer)
 
     """
-    
+    from scipy.linalg import hankel
+
     if spec.ndim == 1:
         spec = np.expand_dims(spec, 0)
     nf, nt = spec.shape
@@ -287,10 +209,9 @@ def lagged_matrix(spec, basis):
         ntau = nbasis = basis
     else:
         ntau, nbasis = basis.shape
-    X = np.zeros((nt, nf * nbasis), dtype=spec.dtype)
-    padding = np.zeros(ntau-1, dtype=spec.dtype)
+    X = np.zeros((nt - ntau, nf * nbasis), dtype=spec.dtype)
     for i in range(nf):
-        h = toeplitz(np.concatenate([spec[i, (ntau-1):], padding]), spec[i, ::-1][-ntau:])
+        h = np.fliplr(hankel(spec[i, :-ntau], spec[i, -ntau:]))
         if not np.isscalar(basis):
             h = np.dot(h, basis)
         X[:, (i * nbasis):((i + 1) * nbasis)] = h
@@ -343,28 +264,16 @@ def unmerge(prediction, unmerged_data):
     return unmerged_data
 
 
-def prep_data(cell, window=2.5, step=1, f_min=1.0, f_max=8.0, f_count=50, gammatone=True):
-    data = load_pprox(cell, window=window, step=step, f_min=f_min, f_max=f_max, f_count=f_count, gammatone=gammatone)
-    data = preprocess_spikes(data, dt=1)
-    fit, test = split_data(data, fit_group=['continuous', 'gap1', 'gap2', 'noise1', 'noise2'],
-                           test_group=['gapnoise1', 'gapnoise2'])
-    for d in fit:
-        d['psth'] = make_psth(d['spike_v'])
-    for d in test:
-        d['psth'] = make_psth(d['spike_v'])
-    fit = r_matrix(fit, lag=50, nb=5, lin=10)
-    test = r_matrix(test, lag=50, nb=5, lin=10)
-    return fit, test
-
-
-def plot_reconstructions(data):
+def plot_reconstructions(data, stimuli, out_dir):
+    import matplotlib.pyplot as plt
     fig, axs = plt.subplots(len(data), 2, figsize=(10, 20))
     for i, d in enumerate(data):
-        axs[i, 0].set_title(' '.join([d['stimulus'], d['condition'], 'actual']))
-        axs[i, 0].imshow(d['stim'], aspect="auto", origin="lower")
-        axs[i, 1].set_title(' '.join([d['stimulus'], d['condition'], 'predicted']))
+        stim, duration, dt = stimuli[d['stim_name']]
+        axs[i, 0].set_title(' '.join([d['stim_name'], 'actual']))
+        axs[i, 0].imshow(stim, aspect="auto", origin="lower")
+        axs[i, 1].set_title(' '.join([d['stim_name'], 'predicted']))
         axs[i, 1].imshow(d['predicted'], aspect="auto", origin="lower")
-    fig.savefig('reconstruction.pdf')
+    fig.savefig(os.path.join(out_dir, 'reconstruction.pdf'))
 
 
 def calc_aic(n, mse, num_params):
@@ -372,33 +281,43 @@ def calc_aic(n, mse, num_params):
     return aic
 
 
-def batch_load(unitfile):
-    fit_all = []
-    test_all = []
-    with open(unitfile, 'r') as fp:
-        cells = fp.readlines()
-        for cell in cells:
-            fit, test = prep_data(nbank.get(cell.strip(), registry_url='https://gracula.psyc.virginia.edu/neurobank')+'.pprox')
-            fit_all.append(fit)
-            test_all.append(test)
-    return test, fit_all, test_all
-
-
 if __name__ == '__main__':
     # Read in data
     parser = argparse.ArgumentParser()
+    parser.add_argument('-w', '--work-dir', help="Directory for intermediate results", default=".")
+    parser.add_argument('-s', '--stim-dir', help="Directory with stimulus files", required=True)
+    parser.add_argument('-r', '--resp-dir', help="Directory with response files", required=True)
     parser.add_argument('-f', '--file', help='Path to list of units', required=True)
     args = parser.parse_args()
-    if os.path.exists('training.joblib') and os.path.exists('testing.joblib') and os.path.exists('predicted.joblib'):
-        fit_all = load('training.joblib')
-        test_all = load('testing.joblib')
-        test = load('predicted.joblib')
-    else:
-        test, fit_all, test_all = batch_load(args.file)
 
     # Specify parameter values
     params = [(10, 20, 30, 40, 50), (10, 20, 30)]
     lag = 300
+
+    try:
+        stimuli = load(os.path.join(args.work_dir, "stimuli.joblib"))
+    except FileNotFoundError:
+        print("- loading stimuli from %s" % args.stim_dir)
+        stimuli = {}
+        for path in glob.glob(os.path.join(args.stim_dir, "*.wav")):
+            name = os.path.splitext(os.path.basename(path))[0]
+            stimuli[name] = load_stimulus(path, window=2.5, step=1, f_min=1.0, f_max=8.0, f_count=50)
+        dump(stimuli, os.path.join(args.work_dir, 'stimuli.joblib'))
+
+    try:
+        responses = load(os.path.join(args.work_dir, 'responses.joblib'))
+    except FileNotFoundError:
+        responses = []
+        with open(args.file, 'r') as fp:
+            for cell in fp:
+                path = os.path.join(args.resp_dir, cell.strip() + ".pprox")
+                data = load_pprox(path, stimuli)
+                data = preprocess_spikes(data, dt=1, nlag=lag)
+                responses.append(data)
+        dump(responses, os.path.join(args.work_dir, 'responses.joblib'))
+
+    fit_conditions = ['continuous', 'gap1', 'gap2', 'noise1', 'noise2']
+    fit_data = [[r for r in unit if r['condition'] in fit_conditions] for unit in responses]
 
     # Fit model
     lags = []
@@ -409,39 +328,45 @@ if __name__ == '__main__':
     aics = []
     best_aic = np.nan
     for nb, lin in itertools.product(*params):
-        for i in range(1):
-            fit_all = [r_matrix(f, lag=lag, nb=nb, lin=lin) for f in fit_all]
-            fit_merge = merge_cells([merge_data(f) for f in fit_all])
-            X = fit_merge['R']
-            y = fit_merge['stim'].T
-            estimator = RidgeCV(alphas=np.linspace(0.1, 10, 50))
-            estimator.fit(X, y)
-            lags.append(lag)
-            nbs.append(nb)
-            lins.append(lin)
-            alphas.append(estimator.alpha_)
-            scores.append(estimator.best_score_)
-            model_aic = calc_aic(len(y), -estimator.best_score_, estimator.coef_.shape[1])
-            aics.append(model_aic)
-            if np.isnan(best_aic) or best_aic > model_aic:
-                best_aic = model_aic
-                dump(estimator, 'best_estimator.joblib')
+        print("- evaluating model for nb=%d, lin=%d" % (nb, lin))
+        fit_data = [r_matrix(f, lag=lag, nb=nb, lin=lin) for f in fit_data]
+        fit_merge = merge_cells([merge_data(f) for f in fit_data], stimuli)
+        X = fit_merge['R']
+        y = fit_merge['stim'].T
+        print("  - n=%d, k=%d" % X.shape)
+        estimator = RidgeCV(alphas=np.linspace(0.1, 10, 50))
+        estimator.fit(X, y)
+        lags.append(lag)
+        nbs.append(nb)
+        lins.append(lin)
+        alphas.append(estimator.alpha_)
+        scores.append(estimator.best_score_)
+        model_aic = calc_aic(len(y), -estimator.best_score_, estimator.coef_.shape[1])
+        aics.append(model_aic)
+        if np.isnan(best_aic) or best_aic > model_aic:
+            best_aic = model_aic
+            dump(fit_data, os.path.join(args.work_dir, 'training.joblib'))
+            dump(estimator, os.path.join(args.work_dir, 'best_estimator.joblib'))
 
     # Predict using best estimator
-    best_params = pd.DataFrame(list(zip(lags, nbs, lins, alphas, scores, aics)), 
-        columns=["Lag", "NBasis", "Lin", "Alpha", "Score", "AIC"])
-    best_estimator = load('best_estimator.joblib')
+    best_params = pd.DataFrame(list(zip(lags, nbs, lins, alphas, scores, aics)), columns=["Lag", "NBasis", "Lin", "Alpha", "Score", "AIC"])
+    best_params.to_csv(os.path.join(args.work_dir, 'best_params.csv'), index=False)
+    best_estimator = load(os.path.join(args.work_dir, 'best_estimator.joblib'))
+
     lag = best_params.iloc[best_params['AIC'].idxmin()]['Lag']
     nb = best_params.iloc[best_params['AIC'].idxmin()]['NBasis']
     lin = best_params.iloc[best_params['AIC'].idxmin()]['Lin']
-    test_all = [r_matrix(t, lag=int(lag), nb=int(nb), lin=int(lin)) for t in test_all]
-    test_merge = merge_cells([merge_data(t) for t in test_all])
+
+    print("- generating predictions for nb=%d, lin=%d" % (nb, lin))
+    test_conditions = ['gapnoise1', 'gapnoise2']
+    test_data = [[r for r in unit if r['condition'] in test_conditions] for unit in responses]
+
+    test_data = [r_matrix(t, lag=int(lag), nb=int(nb), lin=int(lin)) for t in test_data]
+    test_merge = merge_cells([merge_data(t) for t in test_data], stimuli)
     p = best_estimator.predict(test_merge['R'])
 
     # Output results
-    test = unmerge(p, test)
-    plot_reconstructions(test)
-    dump(fit_all, 'training.joblib')
-    dump(test_all, 'testing.joblib')
-    dump(test, 'predicted.joblib')
-    best_params.to_csv('best_params.csv', index=False)
+    test = unmerge(p, test_data[0])
+    plot_reconstructions(test, stimuli, args.work_dir)
+    dump(test_data, os.path.join(args.work_dir, 'testing.joblib'))
+    dump(test, os.path.join(args.work_dir, 'predicted.joblib'))

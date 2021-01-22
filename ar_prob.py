@@ -10,10 +10,7 @@ import argparse
 def conditional_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2):
     rs = []
     cs = []
-    #for i, Xt in enumerate(Xtildes):
-    for i in range(1):
-        Xt = Xtildes[0]
-        #
+    for i, Xt in enumerate(Xtildes):
         stimrs = np.zeros((len(s2), Xt.shape[0]))
         stimcs = np.zeros((len(s2), Xt.shape[0]))
         for j, sf in enumerate(s2):
@@ -21,16 +18,13 @@ def conditional_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2):
             center = Xt @ betahat[j]
             covm = sf * (np.identity(Xt.shape[0]) + Xt @ Vbeta @ Xt.T)
             for t in range(len(covm)):
-                if i % 2 == 0:
-                    stimrs[j, t], stimcs[j, t] = time_step_prob(t, center, covm, ytilders[i][j], ytildecs[i//2][j], True)
-                else:
-                    stimrs[j, t] = time_step_prob(t, center, covm, ytilders[i][j], ytildecs[i//2][j], False)
+                stimrs[j, t], stimcs[j, t] = time_step_prob(t, center, covm, ytilders[i][j], ytildecs[i // 2][j])
         rs.append(stimrs)
         cs.append(stimcs)
     return rs, cs
 
 
-def time_step_prob(t, center, cm, yrs, ycs, cs):
+def time_step_prob(t, center, cm, yrs, ycs):
     # Set up covariance matrix subsets
     # Covariance matrix of the dependent variable
     c11 = cm[t, t]
@@ -58,13 +52,11 @@ def time_step_prob(t, center, cm, yrs, ycs, cs):
     cprob = stats.norm(conditional_mu, conditional_cov).logcdf(yrs[t])
 
     # Conditional CS data
-    if cs is True:
-        acs = np.delete(ycs, t)
-        cs_mu = m1 + c12 @ c22i @ (acs - m2)
-        csprob = stats.norm(cs_mu, conditional_cov).logcdf(ycs[t])
-        return cprob, csprob
-    else:
-        return cprob
+    acs = np.delete(ycs, t)
+    cs_mu = m1 + c12 @ c22i @ (acs - m2)
+    csprob = stats.norm(cs_mu, conditional_cov).logcdf(ycs[t])
+
+    return cprob, csprob
 
 
 if __name__ == '__main__':

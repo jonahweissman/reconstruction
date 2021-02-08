@@ -44,8 +44,8 @@ def interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap):
             dist = stats.multivariate_normal(center[:, j], sf*variance)
             stimrs[j] = dist.logcdf(ytilders[i][j, interval])
             stimcs[j] = dist.logcdf(ytildecs[i // 2][j, interval])
-    rs.append(stimrs)
-    cs.append(stimcs)
+        rs.append(stimrs)
+        cs.append(stimcs)
     return rs, cs
 
 

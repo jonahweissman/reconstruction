@@ -20,8 +20,8 @@ def marginal_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2):
             center = t @ betahat.T
             variance = np.asarray(s2) * (t @ Vbeta @ t.T)
             dist = stats.norm(center, variance)
-            stimrs[:, k] = dist.logcdf(ytilders[i][:, k])
-            stimcs[:, k] = dist.logcdf(ytildecs[i // 2][:, k])
+            stimrs[:, k] = dist.logpdf(ytilders[i][:, k])
+            stimcs[:, k] = dist.logpdf(ytildecs[i // 2][:, k])
         rs.append(stimrs)
         cs.append(stimcs)
     return rs, cs
@@ -42,8 +42,8 @@ def interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap):
         for j, sf in enumerate(s2):
             print(" - spectral band ", j)
             dist = stats.multivariate_normal(center[:, j], sf*variance)
-            stimrs[j] = dist.logcdf(ytilders[i][j, interval])
-            stimcs[j] = dist.logcdf(ytildecs[i // 2][j, interval])
+            stimrs[j] = dist.logpdf(ytilders[i][j, interval])
+            stimcs[j] = dist.logpdf(ytildecs[i // 2][j, interval])
         rs.append(stimrs)
         cs.append(stimcs)
     return rs, cs
@@ -100,12 +100,12 @@ def time_step_prob(t, center, cm, yrs, ycs):
     conditional_cov = c11 - c12 @ c22i @ c21
 
     # Conditional log probability
-    cprob = stats.multivariate_normal(conditional_mu, conditional_cov).logcdf(yrs[t])
+    cprob = stats.multivariate_normal(conditional_mu, conditional_cov).logpdf(yrs[t])
 
     # Conditional CS data
     acs = np.delete(ycs, t)
     cs_mu = m1 + c12 @ c22i @ (acs - m2)
-    csprob = stats.multivariate_normal(cs_mu, conditional_cov).logcdf(ycs[t])
+    csprob = stats.multivariate_normal(cs_mu, conditional_cov).logpdf(ycs[t])
 
     return cprob, csprob
 
@@ -156,10 +156,15 @@ if __name__ == '__main__':
     span = (int(args.win), int(args.step))
 
     rs, cs = interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap)
+    dump(rs, 'RS_probs_interval.joblib')
+    dump(cs, 'CS_probs_interval.joblib')
+
+    # rs, cs = marginal_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2)
+    # dump(rs, 'RS_probs_margin.joblib')
+    # dump(cs, 'CS_probs_margin.joblib')
 
     #plot_all(rs, cs, gap)
-    dump(rs, 'RS_probs.joblib')
-    dump(cs, 'CS_probs.joblib')
+
 
 
 

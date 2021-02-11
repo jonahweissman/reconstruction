@@ -288,11 +288,11 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--stim-dir', help="Directory with stimulus files", required=True)
     parser.add_argument('-r', '--resp-dir', help="Directory with response files", required=True)
     parser.add_argument('-f', '--file', help='Path to list of units', required=True)
+    parser.add_argument('-x', '--xvalidate', help='Cross-validate full parameter set?', default=True)
+    parser.add_argument('-b', '--basis', help='Number of basis vectors (if -x False)', default=30)
+    parser.add_argument('-l', '--lin', help='Linearity factor (if -x False)', default=30)
+    parser.add_argument('-a', '--alpha', help='Alpha value (if -x False)', default=1)
     args = parser.parse_args()
-
-    # Specify parameter values
-    params = [(10, 20, 30, 40, 50), (10, 20, 30)]
-    lag = 300
 
     try:
         stimuli = load(os.path.join(args.work_dir, "stimuli.joblib"))
@@ -319,44 +319,66 @@ if __name__ == '__main__':
     fit_conditions = ['continuous', 'gap1', 'gap2', 'noise1', 'noise2']
     fit_data = [[r for r in unit if r['condition'] in fit_conditions] for unit in responses]
 
-    # Fit model
-    lags = []
-    nbs = []
-    lins = []
-    alphas = []
-    scores = []
-    aics = []
-    best_aic = np.nan
-    for nb, lin in itertools.product(*params):
-        print("- evaluating model for nb=%d, lin=%d" % (nb, lin))
+    # Fit model with cross-validation
+    if args.xvalidate is True:
+        # Specify parameter values
+        params = [(10, 20, 30, 40, 50), (10, 20, 30)]
+        lag = 300
+
+        lags = []
+        nbs = []
+        lins = []
+        alphas = []
+        scores = []
+        aics = []
+        best_aic = np.nan
+        for nb, lin in itertools.product(*params):
+            print("- evaluating model for nb=%d, lin=%d" % (nb, lin))
+            fit_data = [r_matrix(f, lag=lag, nb=nb, lin=lin) for f in fit_data]
+            fit_merge = merge_cells([merge_data(f) for f in fit_data], stimuli)
+            X = fit_merge['R']
+            y = fit_merge['stim'].T
+            print("  - n=%d, k=%d" % X.shape)
+            estimator = RidgeCV(alphas=np.linspace(0.1, 10, 50))
+            estimator.fit(X, y)
+            lags.append(lag)
+            nbs.append(nb)
+            lins.append(lin)
+            alphas.append(estimator.alpha_)
+            scores.append(estimator.best_score_)
+            model_aic = calc_aic(len(y), -estimator.best_score_, estimator.coef_.shape[1])
+            aics.append(model_aic)
+            if np.isnan(best_aic) or best_aic > model_aic:
+                best_aic = model_aic
+                dump(fit_data, os.path.join(args.work_dir, 'training.joblib'))
+                dump(estimator, os.path.join(args.work_dir, 'best_estimator.joblib'))
+
+        # Predict using best estimator
+        best_params = pd.DataFrame(list(zip(lags, nbs, lins, alphas, scores, aics)),
+                                   columns=["Lag", "NBasis", "Lin", "Alpha", "Score", "AIC"])
+        best_params.to_csv(os.path.join(args.work_dir, 'best_params.csv'), index=False)
+        best_estimator = load(os.path.join(args.work_dir, 'best_estimator.joblib'))
+
+        lag = best_params.iloc[best_params['AIC'].idxmin()]['Lag']
+        nb = best_params.iloc[best_params['AIC'].idxmin()]['NBasis']
+        lin = best_params.iloc[best_params['AIC'].idxmin()]['Lin']
+    else:
+        lag = 300
+        nb = args.basis
+        lin = args.lin
+        print("- fitting model for nb=%d, lin=%d" % (nb, lin))
         fit_data = [r_matrix(f, lag=lag, nb=nb, lin=lin) for f in fit_data]
         fit_merge = merge_cells([merge_data(f) for f in fit_data], stimuli)
         X = fit_merge['R']
         y = fit_merge['stim'].T
         print("  - n=%d, k=%d" % X.shape)
-        estimator = RidgeCV(alphas=np.linspace(0.1, 10, 50))
+        estimator = RidgeCV(alphas=[args.alpha])
         estimator.fit(X, y)
-        lags.append(lag)
-        nbs.append(nb)
-        lins.append(lin)
-        alphas.append(estimator.alpha_)
-        scores.append(estimator.best_score_)
-        model_aic = calc_aic(len(y), -estimator.best_score_, estimator.coef_.shape[1])
-        aics.append(model_aic)
-        if np.isnan(best_aic) or best_aic > model_aic:
-            best_aic = model_aic
-            dump(fit_data, os.path.join(args.work_dir, 'training.joblib'))
-            dump(estimator, os.path.join(args.work_dir, 'best_estimator.joblib'))
+        dump(fit_data, os.path.join(args.work_dir, 'training.joblib'))
+        dump(estimator, os.path.join(args.work_dir, 'best_estimator.joblib'))
+        best_estimator = estimator
 
     # Predict using best estimator
-    best_params = pd.DataFrame(list(zip(lags, nbs, lins, alphas, scores, aics)), columns=["Lag", "NBasis", "Lin", "Alpha", "Score", "AIC"])
-    best_params.to_csv(os.path.join(args.work_dir, 'best_params.csv'), index=False)
-    best_estimator = load(os.path.join(args.work_dir, 'best_estimator.joblib'))
-
-    lag = best_params.iloc[best_params['AIC'].idxmin()]['Lag']
-    nb = best_params.iloc[best_params['AIC'].idxmin()]['NBasis']
-    lin = best_params.iloc[best_params['AIC'].idxmin()]['Lin']
-
     print("- generating predictions for nb=%d, lin=%d" % (nb, lin))
     test_conditions = ['gapnoise1', 'gapnoise2']
     test_data = [[r for r in unit if r['condition'] in test_conditions] for unit in responses]

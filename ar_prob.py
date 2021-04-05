@@ -11,20 +11,28 @@ import os
 
 def marginal_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2):
     rs = []
+    rsvar = []
     cs = []
+    csvar = []
     for i, Xt in enumerate(Xtildes):
         print("Stim "+str(i))
         stimrs = np.zeros((len(s2), Xt.shape[0]))
+        stimrsvar = np.zeros((len(s2), Xt.shape[0]))
         stimcs = np.zeros((len(s2), Xt.shape[0]))
+        stimcsvar = np.zeros((len(s2), Xt.shape[0]))
         for k, t in enumerate(Xt):
             center = t @ betahat.T
             variance = np.asarray(s2) * (t @ Vbeta @ t.T)
             dist = stats.norm(center, variance)
             stimrs[:, k] = dist.logpdf(ytilders[i][:, k])
+            stimrsvar[:, k] = variance
             stimcs[:, k] = dist.logpdf(ytildecs[i // 2][:, k])
+            stimcsvar[:, k] = variance
         rs.append(stimrs)
+        rsvar.append(stimrsvar)
         cs.append(stimcs)
-    return rs, cs
+        csvar.append(stimcsvar)
+    return rs, rsvar, cs, csvar
 
 
 def interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap):
@@ -155,13 +163,15 @@ if __name__ == '__main__':
     betahat = estimator.coef_
     span = (int(args.win), int(args.step))
 
-    rs, cs = interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap)
-    dump(rs, 'RS_probs_interval.joblib')
-    dump(cs, 'CS_probs_interval.joblib')
+    #rs, cs = interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap)
+    #dump(rs, 'RS_probs_interval.joblib')
+    #dump(cs, 'CS_probs_interval.joblib')
 
-    # rs, cs = marginal_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2)
-    # dump(rs, 'RS_probs_margin.joblib')
-    # dump(cs, 'CS_probs_margin.joblib')
+    rs, rsvar, cs, csvar = marginal_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2)
+    dump(rs, 'RS_probs_margin.joblib')
+    dump(rsvar, 'RS_var_margin.joblib')
+    dump(cs, 'CS_probs_margin.joblib')
+    dump(csvar, 'CS_var_margin.joblib')
 
     #plot_all(rs, cs, gap)
 

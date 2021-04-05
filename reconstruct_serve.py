@@ -9,11 +9,59 @@ import numpy as np
 import argparse
 import itertools
 import ewave
-import gammatone.gtgram as gg
+import gammatone.gtgram as gt
+import gammatone.filters as gf
 import pandas as pd
 from joblib import dump, load
 from sklearn.linear_model import RidgeCV
+def erb_space(low_freq=1, high_freq=8, num=50):
 
+    return gf.erb_point(low_freq, high_freq, np.arange(1, num + 1) / num)
+
+def centre_freqs(fs, num_freqs, cutoff, fmax):
+    """
+    Calculates an array of centre frequencies (for :func:`make_erb_filters`)
+    from a sampling frequency, lower cutoff frequency and the desired number of
+    filters.
+
+    :param fs: sampling rate
+    :param num_freqs: number of centre frequencies to calculate
+    :type num_freqs: int
+    :param cutoff: lower cutoff frequency
+    :return: same as :func:`erb_space`
+    """
+    return erb_space(cutoff, fmax, num_freqs)
+
+def gtgram_xe(wave, fs, channels, f_min, f_max):
+    """ Calculate the intermediate ERB filterbank processed matrix """
+    cfs = centre_freqs(fs, channels, f_min, f_max)
+    fcoefs = np.flipud(gf.make_erb_filters(fs, cfs))
+    xf = gf.erb_filterbank(wave, fcoefs)
+    xe = np.power(xf, 2)
+    return xe
+
+
+def gtgram(wave,fs,window_time, hop_time,channels,f_min,f_max):
+    """
+    Calculate a spectrogram-like time frequency magnitude array based on
+    gammatone subband filters. The waveform ``wave`` (at sample rate ``fs``) is
+    passed through an multi-channel gammatone auditory model filterbank, with
+    lowest frequency ``f_min`` and highest frequency ``f_max``. The outputs of
+    each band then have their energy integrated over windows of ``window_time``
+    seconds, advancing by ``hop_time`` secs for successive columns. These
+    magnitudes are returned as a nonnegative real matrix with ``channels`` rows.
+
+    | 2009-02-23 Dan Ellis dpwe@ee.columbia.edu
+    |
+    | (c) 2013 Jason Heeris (Python implementation)
+    """
+    xe = gtgram_xe(wave, fs, channels, f_min, f_max)
+    nwin, hop_samples, ncols = gt.gtgram_strides(fs,window_time, hop_time, xe.shape[1])
+    y = np.zeros((channels, ncols))
+    for cnum in range(ncols):
+        segment = xe[:, cnum * hop_samples + np.arange(nwin)]
+        y[:, cnum] = np.sqrt(segment.mean(1))
+    return y
 
 def load_pprox(cell, stimuli):
     """ Load stimulus file and response data from local sources """
@@ -61,7 +109,7 @@ def load_stimulus(path, window, step, f_min=0.5, f_max=8.0, f_count=30,
     fp = ewave.open(path, "r")
     Fs = fp.sampling_rate / 1000.
     osc = ewave.rescale(fp.read(), 'h')
-    Pxx = gg.gtgram(osc, Fs * 1000, window / 1000, step / 1000, f_count, f_min * 1000)
+    Pxx = gtgram(osc, Fs * 1000, window / 1000, step / 1000, f_count, f_min*1000, f_max*1000)
     Pxx = np.log10(Pxx + compress) - np.log10(compress)
     return Pxx, Pxx.shape[1] * step, step
 
@@ -281,6 +329,18 @@ def calc_aic(n, mse, num_params):
     return aic
 
 
+def units_from_file(f, rdir, stimuli, lag):
+    responses = []
+    with open(f, 'r') as fp:
+        for cell in fp:
+            path = os.path.join(rdir, cell.strip() + ".pprox")
+            data = load_pprox(path, stimuli)
+            data = preprocess_spikes(data, dt=1, nlag=lag)
+            responses.append(data)
+    dump(responses, os.path.join(args.work_dir, 'responses.joblib'))
+    return responses
+
+
 if __name__ == '__main__':
     # Read in data
     parser = argparse.ArgumentParser()
@@ -291,8 +351,10 @@ if __name__ == '__main__':
     parser.add_argument('-x', '--xvalidate', help='Cross-validate full parameter set?', default=True)
     parser.add_argument('-b', '--basis', help='Number of basis vectors (if -x False)', default=30)
     parser.add_argument('-l', '--lin', help='Linearity factor (if -x False)', default=30)
-    parser.add_argument('-a', '--alpha', help='Alpha value (if -x False)', default=1)
+    parser.add_argument('-a', '--alpha', help='Alpha value (if -x False)', default=1.0)
     args = parser.parse_args()
+
+    lag = 300
 
     try:
         stimuli = load(os.path.join(args.work_dir, "stimuli.joblib"))
@@ -306,15 +368,15 @@ if __name__ == '__main__':
 
     try:
         responses = load(os.path.join(args.work_dir, 'responses.joblib'))
-    except FileNotFoundError:
-        responses = []
+        nlines = 0
         with open(args.file, 'r') as fp:
-            for cell in fp:
-                path = os.path.join(args.resp_dir, cell.strip() + ".pprox")
-                data = load_pprox(path, stimuli)
-                data = preprocess_spikes(data, dt=1, nlag=lag)
-                responses.append(data)
-        dump(responses, os.path.join(args.work_dir, 'responses.joblib'))
+            for i, l in enumerate(fp):
+                pass
+            nlines = i + 1
+        if nlines != len(responses):
+            responses = units_from_file(args.file, args.resp_dir, stimuli, lag)
+    except FileNotFoundError:
+        responses = units_from_file(args.file, args.resp_dir, stimuli, lag)
 
     fit_conditions = ['continuous', 'gap1', 'gap2', 'noise1', 'noise2']
     fit_data = [[r for r in unit if r['condition'] in fit_conditions] for unit in responses]
@@ -323,7 +385,6 @@ if __name__ == '__main__':
     if args.xvalidate is True:
         # Specify parameter values
         params = [(10, 20, 30, 40, 50), (10, 20, 30)]
-        lag = 300
 
         lags = []
         nbs = []
@@ -363,16 +424,15 @@ if __name__ == '__main__':
         nb = best_params.iloc[best_params['AIC'].idxmin()]['NBasis']
         lin = best_params.iloc[best_params['AIC'].idxmin()]['Lin']
     else:
-        lag = 300
-        nb = args.basis
-        lin = args.lin
+        nb = int(args.basis)
+        lin = int(args.lin)
         print("- fitting model for nb=%d, lin=%d" % (nb, lin))
         fit_data = [r_matrix(f, lag=lag, nb=nb, lin=lin) for f in fit_data]
         fit_merge = merge_cells([merge_data(f) for f in fit_data], stimuli)
         X = fit_merge['R']
         y = fit_merge['stim'].T
         print("  - n=%d, k=%d" % X.shape)
-        estimator = RidgeCV(alphas=[args.alpha])
+        estimator = RidgeCV(alphas=[float(args.alpha)])
         estimator.fit(X, y)
         dump(fit_data, os.path.join(args.work_dir, 'training.joblib'))
         dump(estimator, os.path.join(args.work_dir, 'best_estimator.joblib'))

@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     # Calculate X and Xtilde
     X = np.concatenate([np.concatenate([d["R"] for d in t], axis=0) for t in train], axis=1)
-    Xtilde = np.concatenate([np.concatenate([d["R"] for d in t], axis=0) for t in train], axis=1)
+    Xtilde = np.concatenate([np.concatenate([d["R"] for d in t], axis=0) for t in test], axis=1)
 
     # Calculate y, ytilders, and yltildecs
     y_conditions = ['continuous', 'gap1', 'gap2', 'noise1', 'noise2']
@@ -30,7 +30,7 @@ if __name__ == '__main__':
                         t['condition'] in y_conditions], axis=1)
     ytilders = [stimuli['_'.join((t['stimulus'], t['condition']))][0] for t in test[0] if
                 t['condition'] in ytilders_conditions]
-    ytildecs = [stimuli['_'.join((t['stimulus'], t['condition']))][0] for t in test[0] if
+    ytildecs = [stimuli['_'.join((t['stimulus'], t['condition']))][0] for t in train[0] if
                 t['condition'] in ytildecs_conditions]
     dump(ytilders, os.path.join(args.dir, 'ytilders.joblib'))
     dump(ytildecs, os.path.join(args.dir, 'ytildecs.joblib'))

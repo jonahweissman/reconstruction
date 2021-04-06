@@ -341,6 +341,11 @@ def units_from_file(f, rdir, stimuli, lag):
     return responses
 
 
+def recenterx(X):
+    meanx = np.mean(X, axis=1)
+    return(np.subtract(X,meanx))
+
+
 if __name__ == '__main__':
     # Read in data
     parser = argparse.ArgumentParser()
@@ -398,6 +403,7 @@ if __name__ == '__main__':
             fit_data = [r_matrix(f, lag=lag, nb=nb, lin=lin) for f in fit_data]
             fit_merge = merge_cells([merge_data(f) for f in fit_data], stimuli)
             X = fit_merge['R']
+            X = recenterx(X)
             y = fit_merge['stim'].T
             print("  - n=%d, k=%d" % X.shape)
             estimator = RidgeCV(alphas=np.linspace(0.1, 10, 50))
@@ -430,6 +436,7 @@ if __name__ == '__main__':
         fit_data = [r_matrix(f, lag=lag, nb=nb, lin=lin) for f in fit_data]
         fit_merge = merge_cells([merge_data(f) for f in fit_data], stimuli)
         X = fit_merge['R']
+        X = recenterx(X)
         y = fit_merge['stim'].T
         print("  - n=%d, k=%d" % X.shape)
         estimator = RidgeCV(alphas=[float(args.alpha)])

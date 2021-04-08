@@ -26,14 +26,20 @@ if __name__ == '__main__':
     y_conditions = ['continuous', 'gap1', 'gap2', 'noise1', 'noise2']
     ytilders_conditions = ['gapnoise1', 'gapnoise2']
     ytildecs_conditions = ['continuous']
+    ytildeds_conditions = ['gap1', 'gap2']
     y = np.concatenate([stimuli['_'.join((t['stimulus'], t['condition']))][0] for t in train[0] if
                         t['condition'] in y_conditions], axis=1)
     ytilders = [stimuli['_'.join((t['stimulus'], t['condition']))][0] for t in test[0] if
                 t['condition'] in ytilders_conditions]
     ytildecs = [stimuli['_'.join((t['stimulus'], t['condition']))][0] for t in train[0] if
                 t['condition'] in ytildecs_conditions]
+    ytildeds = [stimuli['_'.join((t['stimulus'], t['condition']))][0] for t in train[0] if
+                t['condition'] in ytildeds_conditions]
+    ytildecn = [ytilders[i]/2 + ytildecs[i // 2]/2 for i in range(len(ytilders))]
     dump(ytilders, os.path.join(args.dir, 'ytilders.joblib'))
     dump(ytildecs, os.path.join(args.dir, 'ytildecs.joblib'))
+    dump(ytildecn, os.path.join(args.dir, 'ytildecn.joblib'))
+    dump(ytildeds, os.path.join(args.dir, 'ytildeds.joblib'))
 
     # Calculate Vbeta
     Vbeta = np.linalg.pinv(X.T @ X)

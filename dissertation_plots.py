@@ -26,7 +26,7 @@ ncmp = ncm[0][7]['predicted']
 ncmdiff = fullp-ncmp
 
 
-norm = TwoSlopeNorm(vmin=l3diff.min(), vmax = l3diff.min()*-1, vcenter=0)
+norm = TwoSlopeNorm(vmin=l3diff.max()*-1, vmax=l3diff.max(), vcenter=0)
 fig,axes = plt.subplots(5, figsize=(10,10), sharex=True, sharey=True)
 axes[0].imshow(cmdiff, origin="lower", aspect="auto", norm=norm, cmap=plt.cm.RdBu_r)
 axes[1].imshow(l1diff, origin="lower", aspect="auto", norm=norm, cmap=plt.cm.RdBu_r)

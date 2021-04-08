@@ -36,8 +36,12 @@ for i in range(len(unregister)):
 diff_interval = np.empty((len(rs), 50, 110))
 diff_interval[:] = np.nan
 for i in range(len(diffs)):
-    inter = slice(gap['start'].iloc[i] - 5, gap['stop'].iloc[i] + 5)
-    diff_interval[i][:][inter] = diffs[i][:][inter]
+    start = gap['start'].iloc[i]-5
+    stop = gap['stop'].iloc[i]+5
+    inter = slice(start, stop)
+    diff_interval[i][:, 0:stop-start] = diffs[i][:, inter]
 
-plt.plot(np.mean(register, axis=0))
-# plt.savefig('prob_registered.pdf')
+diff_mean = np.nanmean(diff_interval, axis=0)
+
+plt.imshow(diff_mean,origin="lower",aspect="auto")
+

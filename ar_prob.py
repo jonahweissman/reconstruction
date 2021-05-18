@@ -9,26 +9,34 @@ import argparse
 import os
 
 
-def marginal_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2):
+def marginal_prob(Xtildes, ytilders, ytildecs, ytildecn, ytildeds, Vbeta, betahat, s2):
     rs = []
-    pvar = []
+    ds = []
     cs = []
+    cn = []
+    pvar = []
     for i, Xt in enumerate(Xtildes):
         print("Stim "+str(i))
         stimrs = np.zeros((len(s2), Xt.shape[0]))
-        stimpvar = np.zeros((len(s2), Xt.shape[0]))
+        stimds = np.zeros((len(s2), Xt.shape[0]))
         stimcs = np.zeros((len(s2), Xt.shape[0]))
+        stimcn = np.zeros((len(s2), Xt.shape[0]))
+        stimpvar = np.zeros((len(s2), Xt.shape[0]))
         for k, t in enumerate(Xt):
             center = t @ betahat.T
             variance = np.asarray(s2) * (t @ Vbeta @ t.T)
             dist = stats.norm(center, variance)
             stimrs[:, k] = dist.logpdf(ytilders[i][:, k])
-            stimpvar[:, k] = variance
+            stimds[:, k] = dist.logpdf(ytildeds[i][:, k])
+            stimcn[:, k] = dist.logpdf(ytildecn[i][:, k])
             stimcs[:, k] = dist.logpdf(ytildecs[i // 2][:, k])
+            stimpvar[:, k] = variance
         rs.append(stimrs)
-        pvar.append(stimpvar)
+        ds.append(stimds)
+        cn.append(stimcn)
         cs.append(stimcs)
-    return rs, pvar, cs
+        pvar.append(stimpvar)
+    return cs, rs, ds, cn, pvar
 
 
 def interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap):
@@ -145,12 +153,14 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--step', help='step size for calculation', default=1)
     args = parser.parse_args()
 
-    estimator = load(os.path.join(args.dir, 'best_estimator.joblib'))
-    Vbeta = load(os.path.join(args.dir, 'Vbeta.joblib'))
-    s2 = load(os.path.join(args.dir, 's2.joblib'))
-    Xtildes = load(os.path.join(args.dir, 'Xtildes.joblib'))
+    estimator = load(os.path.join(args.dir, 'best_estimator_all.joblib'))
+    Vbeta = load(os.path.join(args.dir, 'Vbeta_all.joblib'))
+    s2 = load(os.path.join(args.dir, 's2_all.joblib'))
+    Xtildes = load(os.path.join(args.dir, 'Xtildes_all.joblib'))
     ytilders = load(os.path.join(args.dir, 'ytilders.joblib'))
     ytildecs = load(os.path.join(args.dir, 'ytildecs.joblib'))
+    ytildecn = load(os.path.join(args.dir, 'ytildecn.joblib'))
+    ytildeds = load(os.path.join(args.dir, 'ytildeds.joblib'))
     if os.path.exists('gaptimes.csv'):
         gap = pd.read_csv('gaptimes.csv')
     else:
@@ -163,11 +173,12 @@ if __name__ == '__main__':
     #dump(rs, 'RS_probs_interval.joblib')
     #dump(cs, 'CS_probs_interval.joblib')
 
-    rs, pvar, cs = marginal_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2)
+    cs, rs, ds, cn, pvar = marginal_prob(Xtildes, ytilders, ytildecs, ytildecn, ytildeds, Vbeta, betahat, s2)
     dump(rs, 'RS_probs_margin.joblib')
-    dump(pvar, 'var_margin.joblib')
+    dump(ds, 'DS_probs_margin.joblib')
+    dump(cn, 'CN_probs_margin.joblib')
     dump(cs, 'CS_probs_margin.joblib')
-
+    dump(pvar, 'var_margin.joblib')
     #plot_all(rs, cs, gap)
 
 

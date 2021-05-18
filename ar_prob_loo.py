@@ -10,7 +10,7 @@ import os
 import itertools
 
 
-def leave_one_out(units, Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap):
+def leave_one_out(units, Xtildes, ytildecn, ytilders, Vbeta, betahat, s2, gap):
     unit_diffs = np.zeros((len(units), len(ytilders), len(s2)))
     params = betahat.shape[1] // len(units)
     start = 0
@@ -21,37 +21,37 @@ def leave_one_out(units, Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap):
         Xoo = [np.delete(Xt, interval, axis=1) for Xt in Xtildes]
         bhoo = np.delete(betahat, interval, axis=1)
         Vboo = np.delete(np.delete(Vbeta, interval, axis=0), interval, axis=1)
-        rs, cs = interval_prob(Xoo, ytilders, ytildecs, Vboo, bhoo, s2, gap)
-        unit_diffs[i] = np.asarray([cs[i]-rs[i] for i in range(len(ytilders))])
+        rs, cn = interval_prob(Xoo, ytilders, ytildecn, Vboo, bhoo, s2, gap)
+        unit_diffs[i] = np.asarray([cn[i]-rs[i] for i in range(len(ytilders))])
         start += params
     return unit_diffs
 
 
-def marginal_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2):
+def marginal_prob(Xtildes, ytilders, ytildecn, Vbeta, betahat, s2):
     rs = []
-    cs = []
+    cn = []
     for i, Xt in enumerate(Xtildes):
         print("Stim "+str(i))
         stimrs = np.zeros((len(s2), Xt.shape[0]))
-        stimcs = np.zeros((len(s2), Xt.shape[0]))
+        stimcn = np.zeros((len(s2), Xt.shape[0]))
         for k, t in enumerate(Xt):
             center = t @ betahat.T
             variance = np.asarray(s2) * (t @ Vbeta @ t.T)
             dist = stats.norm(center, variance)
             stimrs[:, k] = dist.logpdf(ytilders[i][:, k])
-            stimcs[:, k] = dist.logpdf(ytildecs[i // 2][:, k])
+            stimcn[:, k] = dist.logpdf(ytildecn[i][:, k])
         rs.append(stimrs)
-        cs.append(stimcs)
-    return rs, cs
+        cn.append(stimcn)
+    return rs, cn
 
 
-def interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap):
+def interval_prob(Xtildes, ytilders, ytildecn, Vbeta, betahat, s2, gap):
     rs = []
-    cs = []
+    cn = []
     for i, Xt in enumerate(Xtildes):
         print(" - stim ", i)
         stimrs = np.zeros(len(s2))
-        stimcs = np.zeros(len(s2))
+        stimcn = np.zeros(len(s2))
         start = gap['start'].iloc[i]
         stop = gap['stop'].iloc[i]
         interval = slice(start, stop)
@@ -60,10 +60,10 @@ def interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap):
         for j, sf in enumerate(s2):
             dist = stats.multivariate_normal(center[:, j], sf*variance)
             stimrs[j] = dist.logpdf(ytilders[i][j, interval])
-            stimcs[j] = dist.logpdf(ytildecs[i // 2][j, interval])
+            stimcn[j] = dist.logpdf(ytildecn[i][j, interval])
         rs.append(stimrs)
-        cs.append(stimcs)
-    return rs, cs
+        cn.append(stimcn)
+    return rs, cn
 
 
 if __name__ == '__main__':
@@ -71,12 +71,13 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dir', help='joblib directory')
     args = parser.parse_args()
 
-    estimator = load(os.path.join(args.dir, 'best_estimator.joblib'))
-    Vbeta = load(os.path.join(args.dir, 'Vbeta.joblib'))
-    s2 = load(os.path.join(args.dir, 's2.joblib'))
-    Xtildes = load(os.path.join(args.dir, 'Xtildes.joblib'))
+    estimator = load(os.path.join(args.dir, 'best_estimator_all.joblib'))
+    Vbeta = load(os.path.join(args.dir, 'Vbeta_all.joblib'))
+    s2 = load(os.path.join(args.dir, 's2_all.joblib'))
+    Xtildes = load(os.path.join(args.dir, 'Xtildes_all.joblib'))
     ytilders = load(os.path.join(args.dir, 'ytilders.joblib'))
     ytildecs = load(os.path.join(args.dir, 'ytildecs.joblib'))
+    ytildecn = load(os.path.join(args.dir, 'ytildecn.joblib'))
     if os.path.exists('gaptimes.csv'):
         gap = pd.read_csv('gaptimes.csv')
     else:
@@ -88,12 +89,12 @@ if __name__ == '__main__':
     betahat = estimator.coef_
 
     # leave-one-out array
-    unit_diffs = leave_one_out(units, Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap)
+    unit_diffs = leave_one_out(units, Xtildes, ytildecn, ytilders, Vbeta, betahat, s2, gap)
     dump(unit_diffs, os.path.join(args.dir, 'unit_diffs.joblib'))
 
     # leave-none-out array
-    rs, cs = interval_prob(Xtildes, ytilders, ytildecs, Vbeta, betahat, s2, gap)
-    dfreq = np.asarray([cs[i]-rs[i] for i in range(len(ytilders))])
+    rs, cn = interval_prob(Xtildes, ytilders, ytildecn, Vbeta, betahat, s2, gap)
+    dfreq = np.asarray([cn[i]-rs[i] for i in range(len(ytilders))])
 
     # difference the arrays and write to csv
     udnorm = np.asarray([dfreq-u for u in unit_diffs])

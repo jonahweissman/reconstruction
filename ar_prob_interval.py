@@ -66,6 +66,7 @@ if __name__ == '__main__':
         csl = np.sum(csfreq, axis=1)
 
         ll = pd.DataFrame({
+            "Song": list(range(1, 17)) * 3,
             "Area": [area] * len(ytilders) * 3,
             "Comp": ['Replaced'] * len(ytilders) + ['Discontinuous'] * len(ytildeds) + ['Continuous'] * len(ytildecs),
             "Likelihood": rsl.tolist() + dsl.tolist() + csl.tolist()
@@ -74,7 +75,7 @@ if __name__ == '__main__':
         area_ll.append(ll)
 
     area_ll = pd.concat(area_ll)
-    area_ll.to_csv('area_ll')
+    area_ll.to_csv('area_ll.csv')
 
 
 

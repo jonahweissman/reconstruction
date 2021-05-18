@@ -1,0 +1,92 @@
+library(tidyverse)
+library(emmeans)
+library(lme4)
+library(knitr)
+
+l2a <- read.csv("leaveoneout/correlations_l2a.csv")
+cm <- read.csv("leaveoneout/correlations_cm.csv")
+l1 <- read.csv("leaveoneout/correlations_l1.csv")
+ncm <- read.csv("leaveoneout/correlations_ncm.csv")
+l3 <- read.csv("leaveoneout/correlations_l3.csv")
+areacorr <- bind_rows(cm,l1,l2a)
+areacorr <- bind_rows(areacorr,l3)
+ncm <- read.csv("leaveoneout/correlations_ncm.csv")
+cm$Location <- "CM"
+l1$Location <- "L1"
+l2a$Location <- "L2a"
+l3$Location <- "L3"
+ncm$Location <- "NCM"
+areacorr <- bind_rows(cm,l1,l2a,l3,ncm)
+colnames(areacorr) <- c("Song","Continuous","Gap","Replaced","ContNoise","Control","Location")
+areacorr <- areacorr %>% pivot_longer(cols = Continuous:Control, names_to="Condition", values_to="Corr")
+colnames(areacorr) <- c("Variant","Location","Condition","Corr")
+areacorr <- left_join(areacorr,corrl, by=c("Variant","Condition"))
+areacorr <- areacorr %>% mutate(Corr = Corr.y-Corr.x)
+areacorr %>% ggplot(aes(x=Location,y=Corr)) + geom_boxplot(aes(fill=Location),notch=TRUE) + facet_grid(rows=vars(Condition))
+lm1 <- lmer(Corr ~ Location*Condition + (1 | Variant), areacorr)
+summary(lm1)
+em_area <- emmeans(lm1, ~ Condition | Location)
+em_area
+arealm <- as.data.frame(contrast(em_area))
+arealmci <- as.data.frame(confint(contrast(em_area)),level=.9)
+arealm$LCL <- arealmci$lower.CL
+arealm$UCL <- arealmci$upper.CL
+arealm$contrast = str_split_fixed(arealm$contrast, " ", 2)[,1]
+areacorr %>% filter(Condition != "Control") %>% ggplot(aes(x=Condition, y = Corr, color=Condition)) + geom_hline(yintercept=0) + geom_point(aes(color=Condition),position = position_jitter(w = 0.1, h = 0),alpha=0.5) + facet_grid(cols=vars(Location)) + scale_y_continuous(limits=c(-0.3,0.3))
+arealm %>% filter(contrast != "Control") %>% ggplot(aes(x=contrast, y = estimate, color=contrast)) + geom_hline(yintercept=0) + geom_point(size=2) + geom_errorbar(aes(ymin=LCL, ymax=UCL),width=0, size=3, alpha=0.5) + facet_grid(cols=vars(Location)) + scale_y_continuous(limits=c(-0.3,0.3))
+areacorr %>% filter(Condition == "Control") %>% ggplot(aes(x=Location, y = Corr, color=Condition)) + geom_hline(yintercept=0) + geom_point(aes(color=Condition),position = position_jitter(w = 0.1, h = 0),alpha=0.5) + scale_y_continuous(limits=c(-0.3,0.3))
+arealm %>% filter(contrast == "Control") %>% ggplot(aes(x=Location, y = estimate, color=contrast)) + geom_hline(yintercept=0) + geom_point(size=2) + geom_errorbar(aes(ymin=LCL, ymax=UCL),width=0, size=3, alpha=0.5) + scale_y_continuous(limits=c(-0.3,0.3))
+kable(arealm,"latex")
+
+
+corr <- read.csv("correlations_all.csv")
+colnames(corr) <- c("Variant","Continuous","Gap","Replaced","ContNoise","Control")
+corrl <- corr %>% pivot_longer(!Variant, names_to = "Condition", values_to="Corr")
+corrl <- left_join(corrl,dplyr::select(cctime, c("stim","time","song")), by=c("Variant"="stim"))
+corrl <- corrl %>% distinct()
+corrl %>% ggplot(aes(reorder(Condition, -Corr),Corr)) + geom_boxplot(aes(fill = Condition)) + geom_point() + geom_line(aes(group=Variant)) + geom_hline(yintercept=0) + scale_y_continuous(limits=c(-0.5,1))
+mcorr <- lmer(Corr ~ Condition + (1|Variant),corrl)
+em_corr <- emmeans(mcorr, ~ Condition)
+contrast(em_corr, simple="Condition")
+contrast(em_corr, interaction="pairwise")
+confint(contrast(em_corr, simple="Condition"))
+
+cc178b <- read.csv("leaveoneout/correlations_178B.csv")
+cc180b <- read.csv("leaveoneout/correlations_180B.csv")
+cc178b$Group = "178B"
+cc180b$Group = "180B"
+cc178b$Familiar = c(TRUE,TRUE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE)
+cc180b$Familiar = c(FALSE,FALSE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE)
+ccsocial <- bind_rows(cc178b,cc180b)
+t.test(ContNoise ~ Familiar, data=ccsocial)
+t.test(ContNoise ~ Group, data=ccsocial)
+ccsocial %>% ggplot() + geom_boxplot(aes(x=Familiar, y=ContNoise),width=0.5) + geom_line(aes(x=Familiar, y=ContNoise, group=X)) + geom_point(aes(x=Familiar, y=ContNoise), size=3) + scale_y_continuous(limits=c(-0.5,1))
+ccsocial %>% ggplot() + geom_boxplot(aes(x=Group, y=ContNoise),width=0.5) + geom_line(aes(x=Group, y=ContNoise, group=X)) + geom_point(aes(x=Group, y=ContNoise), size=3)
+
+library(psychometric)
+unit_rates <- read.csv("unit_rates.csv")
+#restlist <- read.csv("restlist.csv")
+#unit_rates <- left_join(unit_rates,restlist,by="ID")
+unit_rates %>% ggplot(aes(x=log(CS),y=log(RS))) + geom_point() + geom_smooth(method="lm") + scale_y_continuous(limits=c(0,5)) + scale_x_continuous(limits=c(0,5))
+mcs <- lm(log(RS) ~ log(CS), unit_rates)
+CI.Rsq(0.8898,407,1,level=.9)
+unit_rates %>% ggplot(aes(x=log(DS),y=log(RS))) + geom_point() + geom_smooth(method="lm") + scale_y_continuous(limits=c(0,5)) + scale_x_continuous(limits=c(0,5))
+mds <- lm(log(RS) ~ log(DS), unit_rates)
+CI.Rsq(0.6846,407,1,level=.9)
+unit_rates %>% ggplot(aes(x=log(NS),y=log(RS))) + geom_point() + geom_smooth(method="lm") + scale_y_continuous(limits=c(0,5)) + scale_x_continuous(limits=c(0,5))
+mns <- lm(log(RS) ~ log(NS), unit_rates)
+CI.Rsq(0.731,407,1,level=.9)
+r2conf <- bind_rows(CI.Rsq(0.8898,407,1,level=.9),CI.Rsq(0.731,407,1,level=.9),CI.Rsq(0.6846,407,1,level=.9))
+r2conf$Condition = c("CS","NS","DS")
+r2conf %>% ggplot(aes(x=reorder(Condition, -Rsq),y=Rsq,color=Condition,fill=Condition)) + geom_point(size=3) + geom_errorbar(aes(ymin=LCL, ymax=UCL),width=0, size=3, alpha=0.5) + scale_y_continuous(limits=c(0.6,1))
+
+ll <- read.csv("area_ll.csv")
+llall <- ll %>% filter(Area == "all")
+llarea <- ll %>% filter(Area != "all")
+llarea <- left_join(llarea,llall,by=c("Comp","Song"))
+llarea <- llarea %>% mutate(Likelihood = Likelihood.y-Likelihood.x)
+llrs <- llarea %>% filter(Comp == "Replaced")
+llrs %>% ggplot(aes(x=Area.x, y=Likelihood)) + geom_boxplot() + geom_point()
+llmod <- lmer(Likelihood ~ Area.x + (1|Song), llrs)
+emmeans(llmod, ~ | Area.x)
+contrast(em_ll)

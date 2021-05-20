@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
+
+# Calculates correlation coefficients between reconstruction model and spectrograms
+# Requires output of fitted reconstruction model
+
 from __future__ import print_function, division, absolute_import
 
 import os

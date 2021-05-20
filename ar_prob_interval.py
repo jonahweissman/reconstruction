@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
 
+# Joint posterior probability calculation for multiple reconstruction models
+# Requires joblib directory of reconstruction model outputs and ar_prep.py output
+# Outputs likelihoods to csv file
+
 import numpy as np
 from joblib import load, dump
 from scipy import stats

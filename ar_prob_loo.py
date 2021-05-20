@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
 
+# Joint posterior probability calculation with leave-one-out
+# Requires joblib directory of reconstruction model output and ar_prep.py output
+
 import numpy as np
 from joblib import load, dump
 from scipy import stats
@@ -85,6 +88,8 @@ if __name__ == '__main__':
     if os.path.exists('unitfiles_all.txt'):
         with open('unitfiles_all.txt', 'r') as fp:
             units = [cell.strip() for cell in fp]
+    else:
+        raise ValueError("unitfiles_all.txt not found")
 
     betahat = estimator.coef_
 

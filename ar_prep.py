@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
 
+# Generates input joblib files for likelihood analysis from fitted reconstruction models
+
 import numpy as np
 from joblib import load, dump
 import os
@@ -22,7 +24,7 @@ if __name__ == '__main__':
     X = np.concatenate([np.concatenate([d["R"] for d in t], axis=0) for t in train], axis=1)
     Xtilde = np.concatenate([np.concatenate([d["R"] for d in t], axis=0) for t in test], axis=1)
 
-    # Calculate y, ytilders, and yltildecs
+    # Calculate y and various ytildes
     y_conditions = ['continuous', 'gap1', 'gap2', 'noise1', 'noise2']
     ytilders_conditions = ['gapnoise1', 'gapnoise2']
     ytildecs_conditions = ['continuous']

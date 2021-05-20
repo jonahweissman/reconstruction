@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
 
+# Marginal or joint posterior probability calculation
+# Requires joblib directory of reconstruction model output and ar_prep.py output
+# Outputs likelihoods to joblib files
+
 import numpy as np
 from joblib import load, dump
 from scipy import stats

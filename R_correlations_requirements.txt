@@ -1,0 +1,63 @@
+              Package         LibPath                                       Version      Priority      Depends                                              
+abind         "abind"         "C:/Users/Margot/Documents/R/win-library/4.0" "1.4-5"      NA            "R (>= 1.5.0)"                                       
+ada           "ada"           "C:/Users/Margot/Documents/R/win-library/4.0" "2.0-5"      NA            "R(>= 2.10),rpart"                                   
+askpass       "askpass"       "C:/Users/Margot/Documents/R/win-library/4.0" "1.1"        NA            NA                                                   
+assertthat    "assertthat"    "C:/Users/Margot/Documents/R/win-library/4.0" "0.2.1"      NA            NA                                                   
+backports     "backports"     "C:/Users/Margot/Documents/R/win-library/4.0" "1.1.10"     NA            "R (>= 3.0.0)"                                       
+base64enc     "base64enc"     "C:/Users/Margot/Documents/R/win-library/4.0" "0.1-3"      NA            "R (>= 2.9.0)"                                       
+BH            "BH"            "C:/Users/Margot/Documents/R/win-library/4.0" "1.75.0-0"   NA            NA                                                   
+bit           "bit"           "C:/Users/Margot/Documents/R/win-library/4.0" "4.0.4"      NA            "R (>= 2.9.2)"                                       
+bit64         "bit64"         "C:/Users/Margot/Documents/R/win-library/4.0" "4.0.5"      NA            "R (>= 3.0.1), bit (>= 4.0.0), utils, methods, stats"
+blob          "blob"          "C:/Users/Margot/Documents/R/win-library/4.0" "1.2.1"      NA            NA                                                   
+brew          "brew"          "C:/Users/Margot/Documents/R/win-library/4.0" "1.0-6"      NA            NA                                                   
+broom         "broom"         "C:/Users/Margot/Documents/R/win-library/4.0" "0.7.2"      NA            "R (>= 3.1)"                                         
+cachem        "cachem"        "C:/Users/Margot/Documents/R/win-library/4.0" "1.0.4"      NA            NA                                                   
+callr         "callr"         "C:/Users/Margot/Documents/R/win-library/4.0" "3.5.1"      NA            NA                                                   
+car           "car"           "C:/Users/Margot/Documents/R/win-library/4.0" "3.0-10"     NA            "R (>= 3.5.0), carData (>= 3.0-0)"                   
+carData       "carData"       "C:/Users/Margot/Documents/R/win-library/4.0" "3.0-4"      NA            "R (>= 3.5.0)"                                       
+cellranger    "cellranger"    "C:/Users/Margot/Documents/R/win-library/4.0" "1.1.0"      NA            "R (>= 3.0.0)"                                       
+cli           "cli"           "C:/Users/Margot/Documents/R/win-library/4.0" "2.1.0"      NA            "R (>= 2.10)"                                        
+clipr         "clipr"         "C:/Users/Margot/Documents/R/win-library/4.0" "0.7.1"      NA            NA                                                   
+colorspace    "colorspace"    "C:/Users/Margot/Documents/R/win-library/4.0" "1.4-1"      NA            "R (>= 3.0.0), methods"                              
+commonmark    "commonmark"    "C:/Users/Margot/Documents/R/win-library/4.0" "1.7"        NA            NA                                                   
+conquer       "conquer"       "C:/Users/Margot/Documents/R/win-library/4.0" "1.0.2"      NA            "R (>= 3.5.0)"                                       
+corrplot      "corrplot"      "C:/Users/Margot/Documents/R/win-library/4.0" "0.84"       NA            NA                                                   
+covr          "covr"          "C:/Users/Margot/Documents/R/win-library/4.0" "3.5.1"      NA            "R (>= 3.1.0), methods"                              
+cowplot       "cowplot"       "C:/Users/Margot/Documents/R/win-library/4.0" "1.1.0"      NA            "R (>= 3.5.0)"                                       
+cpp11         "cpp11"         "C:/Users/Margot/Documents/R/win-library/4.0" "0.2.3"      NA            NA                                                   
+crayon        "crayon"        "C:/Users/Margot/Documents/R/win-library/4.0" "1.3.4"      NA            NA                                                   
+credentials   "credentials"   "C:/Users/Margot/Documents/R/win-library/4.0" "1.3.0"      NA            NA                                                   
+crosstalk     "crosstalk"     "C:/Users/Margot/Documents/R/win-library/4.0" "1.1.1"      NA            NA                                                   
+curl          "curl"          "C:/Users/Margot/Documents/R/win-library/4.0" "4.3"        NA            "R (>= 3.0.0)"                                       
+data.table    "data.table"    "C:/Users/Margot/Documents/R/win-library/4.0" "1.13.2"     NA            "R (>= 3.1.0)"                                       
+DBI           "DBI"           "C:/Users/Margot/Documents/R/win-library/4.0" "1.1.0"      NA            "methods, R (>= 3.0.0)"                              
+dbplyr        "dbplyr"        "C:/Users/Margot/Documents/R/win-library/4.0" "1.4.4"      NA            "R (>= 3.1)"                                         
+desc          "desc"          "C:/Users/Margot/Documents/R/win-library/4.0" "1.2.0"      NA            "R (>= 3.1.0)"                                       
+devtools      "devtools"      "C:/Users/Margot/Documents/R/win-library/4.0" "2.3.2"      NA            "R (>= 3.0.2), usethis (>= 1.6.3)"                   
+digest        "digest"        "C:/Users/Margot/Documents/R/win-library/4.0" "0.6.26"     NA            "R (>= 3.3.0)"                                       
+dplyr         "dplyr"         "C:/Users/Margot/Documents/R/win-library/4.0" "1.0.2"      NA            "R (>= 3.2.0)"                                       
+DT            "DT"            "C:/Users/Margot/Documents/R/win-library/4.0" "0.17"       NA            NA                                                   
+e1071         "e1071"         "C:/Users/Margot/Documents/R/win-library/4.0" "1.7-4"      NA            NA                                                   
+ellipsis      "ellipsis"      "C:/Users/Margot/Documents/R/win-library/4.0" "0.3.1"      NA            "R (>= 3.2)"                                         
+emmeans       "emmeans"       "C:/Users/Margot/Documents/R/win-library/4.0" "1.5.2-1"    NA            "R (>= 3.5.0)"                                       
+estimability  "estimability"  "C:/Users/Margot/Documents/R/win-library/4.0" "1.3"        NA            "stats"                                              
+evaluate      "evaluate"      "C:/Users/Margot/Documents/R/win-library/4.0" "0.14"       NA            "R (>= 3.0.2)"                                       
+evd           "evd"           "C:/Users/Margot/Documents/R/win-library/4.0" "2.3-3"      NA            NA                                                   
+fansi         "fansi"         "C:/Users/Margot/Documents/R/win-library/4.0" "0.4.1"      NA            "R (>= 3.1.0)"                                       
+farver        "farver"        "C:/Users/Margot/Documents/R/win-library/4.0" "2.0.3"      NA            NA                                                   
+fastmap       "fastmap"       "C:/Users/Margot/Documents/R/win-library/4.0" "1.1.0"      NA            NA                                                   
+ff            "ff"            "C:/Users/Margot/Documents/R/win-library/4.0" "4.0.4"      NA            "R (>= 2.10.1), bit (>= 4.0.0), utils"               
+forcats       "forcats"       "C:/Users/Margot/Documents/R/win-library/4.0" "0.5.0"      NA            "R (>= 3.2)"                                         
+fs            "fs"            "C:/Users/Margot/Documents/R/win-library/4.0" "1.5.0"      NA            "R (>= 3.1)"                                         
+gender        "gender"        "C:/Users/Margot/Documents/R/win-library/4.0" "0.5.4"      NA            "R (>= 3.0.0), utils, stats"                         
+generics      "generics"      "C:/Users/Margot/Documents/R/win-library/4.0" "0.0.2"      NA            "R (>= 3.1)"                                         
+gert          "gert"          "C:/Users/Margot/Documents/R/win-library/4.0" "1.2.0"      NA            NA                                                   
+ggplot2       "ggplot2"       "C:/Users/Margot/Documents/R/win-library/4.0" "3.3.2"      NA            "R (>= 3.2)"                                         
+ggpubr        "ggpubr"        "C:/Users/Margot/Documents/R/win-library/4.0" "0.4.0"      NA            "R (>= 3.1.0), ggplot2"                              
+ggrepel       "ggrepel"       "C:/Users/Margot/Documents/R/win-library/4.0" "0.8.2"      NA            "R (>= 3.0.0), ggplot2 (>= 2.2.0)"                   
+ggsci         "ggsci"         "C:/Users/Margot/Documents/R/win-library/4.0" "2.9"        NA            "R (>= 3.0.2)"                                       
+ggsignif      "ggsignif"      "C:/Users/Margot/Documents/R/win-library/4.0" "0.6.0"      NA            NA                                                   
+gh            "gh"            "C:/Users/Margot/Documents/R/win-library/4.0" "1.2.0"      NA            NA                                                   
+gitcreds      "gitcreds"      "C:/Users/Margot/Documents/R/win-library/4.0" "0.1.1"      NA            NA                                                   
+glue          "glue"          "C:/Users/Margot/Documents/R/win-library/4.0" "1.4.2"      NA            "R (>= 3.2)"                                         
+gridExtra     "gridExtra"     "C:/Users/Margot/Documents/R/win-library/4.0" "2.3"        NA            NA                                                   

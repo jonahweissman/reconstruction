@@ -1,2 +1,5 @@
 *.pprox
 *.wav
+*.pdf
+*.joblib
+*.tar.gz

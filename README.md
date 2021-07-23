@@ -28,6 +28,10 @@ On a computer with local Neurobank files, to create symlinks to all pprox files,
 cat units.txt | xargs nbank locate -L .
 mkdir stims
 cat *.pprox | jq '.pprox | map(.stim_uuid)' | jq -sr 'add | unique | .[]' | xargs nbank locate -L stims
-
-
+```
+If you don't have access to the original Neurobank files, an archive of the data
+files is available at https://github.com/jonahweissman/reconstruction/releases
+in `data.tar.gz`. Download that file into this directory and extract it with:
+```
+tar xf data.tar.gz
 ```

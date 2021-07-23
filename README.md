@@ -26,4 +26,8 @@ correlations.R
 On a computer with local Neurobank files, to create symlinks to all pprox files,
 ```
 cat units.txt | xargs nbank locate -L .
+mkdir stims
+cat *.pprox | jq '.pprox | map(.stim_uuid)' | jq -sr 'add | unique | .[]' | xargs nbank locate -L stims
+
+
 ```

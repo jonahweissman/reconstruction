@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 
 def load_pprox(cell, window, step, stimuli=None, alt_base=None, **specargs):
     """ Load stimulus file and response data from local sources """
+    if not os.path.isfile(cell):
+        cell += ".pprox"
     unit = os.path.splitext(os.path.basename(cell))[0]
     print(" - responses loaded from:", unit)
     # first load and collate the responses, then load the stimuli

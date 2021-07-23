@@ -21,3 +21,9 @@ neurogram.py
 prob_analysis.py
 dissertation_plots.py
 correlations.R
+
+# Fetching pprox files
+On a computer with local Neurobank files, to create symlinks to all pprox files,
+```
+cat units.txt | xargs nbank locate -L .
+```

@@ -22,7 +22,7 @@ prob_analysis.py
 dissertation_plots.py
 correlations.R
 
-# Fetching pprox files
+# Fetching data files
 On a computer with local Neurobank files, to create symlinks to all pprox files,
 ```
 cat units.txt | xargs nbank locate -L .
@@ -34,4 +34,11 @@ files is available at https://github.com/jonahweissman/reconstruction/releases
 in `data.tar.gz`. Download that file into this directory and extract it with:
 ```
 tar xf data.tar.gz
+```
+
+# Running the code
+```
+docker build -t reconstruction .
+docker run -it -v $PWD:/tf reconstruction:latest /bin/bash
+python reconstruction.py
 ```
